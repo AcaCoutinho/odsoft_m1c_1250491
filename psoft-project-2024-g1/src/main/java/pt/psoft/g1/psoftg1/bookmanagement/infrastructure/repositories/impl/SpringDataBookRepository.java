@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public interface SpringDataBookRepository  extends BookRepository, BookRepoCustom, CrudRepository<Book, Isbn> {
+public interface SpringDataBookRepository  extends BookRepository, BookRepoCustom, CrudRepository<Book, Long> {
 
     @Query("SELECT b " +
             "FROM Book b " +
