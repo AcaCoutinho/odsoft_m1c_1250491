@@ -60,17 +60,25 @@ Há uma coleção Postman em `psoft-project-2024-g1/Docs/`.
 
 Usar sempre `clean`. Com classes antigas em `target/` (por exemplo, compiladas pelo IDE), o agente do JaCoCo pode fazer falhar os testes com `VerifyError: Control flow falls through code end`.
 
-Os testes de integração são identificados pelo nome: ficheiros `*IntegrationTest.java` correm no Failsafe; todos os outros correm no Surefire.
+Os testes estão organizados por módulo e por nível, em `src/test/java/pt/psoft/g1/psoftg1/<módulo>/<nível>/`:
+
+| Pasta | Nível | Doubles | Plugin |
+|---|---|---|---|
+| `unit/` | Unitário: uma classe isolada dos colaboradores | Mockito (dummy, stub, mock, spy) | Surefire |
+| `integration/` | Integração: várias camadas reais (Spring, JPA, H2) | Só onde é preciso isolar uma parte (ex.: `AuthorService` no teste do controller) | Failsafe |
+| `system/` | Sistema (e2e): aplicação completa numa porta aleatória, acedida só por HTTP | Nenhum | Failsafe |
+
+O Failsafe corre o que está em `integration/` e `system/`; o Surefire corre o resto. Testes com `@Disabled("Known defect: ...")` documentam defeitos encontrados e ainda não corrigidos.
 
 ## Plugins Maven
 
 | Plugin | Versão | Fase | Função | Relatório |
 |---|---|---|---|---|
-| `maven-surefire-plugin` | 3.2.5 | `test` | Testes unitários (exclui `*IntegrationTest`) | `target/surefire-reports/` |
-| `maven-failsafe-plugin` | 3.2.5 | `integration-test`, `verify` | Testes de integração (`*IntegrationTest`) | `target/failsafe-reports/` |
+| `maven-surefire-plugin` | 3.2.5 | `test` | Testes unitários (exclui `integration/` e `system/`) | `target/surefire-reports/` |
+| `maven-failsafe-plugin` | 3.2.5 | `integration-test`, `verify` | Testes de integração e de sistema (`integration/`, `system/`) | `target/failsafe-reports/` |
 | `maven-surefire-report-plugin` | 3.2.5 | `verify` | Relatórios HTML dos testes unitários e de integração | `target/site/surefire-report.html`, `target/site/failsafe-report.html` |
 | `jacoco-maven-plugin` | 0.8.12 | `initialize`, `verify` | Cobertura de código (unitários e integração no mesmo `jacoco.exec`) | `target/site/jacoco/index.html`, `target/site/jacoco/jacoco.xml` |
 | `spotbugs-maven-plugin` | 4.8.6.4 | `verify` | Deteção de padrões de bugs | `target/spotbugsXml.xml`, `target/site/spotbugs.html` |
 | `maven-pmd-plugin` | 3.25.0 | `verify` | Análise estática com o ruleset por defeito | `target/pmd.xml`, `target/reports/pmd.html` |
-| `pitest-maven` + `pitest-junit5-plugin` | 1.16.2 + 1.2.1 | Manual | Mutation testing (exclui `*IntegrationTest`) | `target/pit-reports/index.html`, `target/pit-reports/mutations.xml` |
+| `pitest-maven` + `pitest-junit5-plugin` | 1.16.2 + 1.2.1 | Manual | Mutation testing (só testes unitários) | `target/pit-reports/index.html`, `target/pit-reports/mutations.xml` |
 | `sonar-maven-plugin` | 5.1.0.4751 | Manual | Envio da análise para o SonarQube (lê o `jacoco.xml`) | No servidor SonarQube |

@@ -5,8 +5,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.psoft.g1.psoftg1.usermanagement.api.UserView;
 import pt.psoft.g1.psoftg1.usermanagement.api.UserViewMapper;
+import pt.psoft.g1.psoftg1.usermanagement.model.Reader;
 import pt.psoft.g1.psoftg1.usermanagement.model.User;
-import pt.psoft.g1.psoftg1.usermanagement.services.CreateUserRequest;
+import pt.psoft.g1.psoftg1.usermanagement.repositories.UserRepository;
 import pt.psoft.g1.psoftg1.usermanagement.services.UserService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,13 +23,17 @@ public class UserTestDataFactory {
     @Autowired
     private UserService userService;
     @Autowired
+    private UserRepository userRepository;
+    @Autowired
     private UserViewMapper userViewMapper;
 
+    /**
+     * Persists the user the same way the bootstrap does. UserService.create is not used because it
+     * encodes the password twice (see AuthApiIntegrationTest.testRegisteredUserCanLogin).
+     */
     @Transactional
     public UserView createUser(final String username, final String fullName, final String password) {
-        final CreateUserRequest createRequest = new CreateUserRequest(username, fullName, password);
-
-        final User user = userService.create(createRequest);
+        final User user = userRepository.save(Reader.newReader(username, password, fullName));
 
         assertNotNull(user.getId(), "User id must not be null!");
         assertEquals(fullName, user.getName().toString(), "User name update isn't applied!");

@@ -144,14 +144,15 @@
 				</configuration>
 			</plugin>
 
-			<!-- Unit tests -->
+			<!-- Unit tests: everything outside the integration/ and system/ folders -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>3.2.5</version>
 				<configuration>
 					<excludes>
-						<exclude>**/*IntegrationTest.java</exclude>
+						<exclude>**/integration/**</exclude>
+						<exclude>**/system/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -172,14 +173,15 @@
 				</executions>
 			</plugin>
 
-			<!-- Integration tests; JaCoCo argLine is shared, so jacoco.exec covers unit + IT -->
+			<!-- Integration and system tests (integration/ and system/ folders); JaCoCo argLine is shared, so jacoco.exec covers all levels -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<version>3.2.5</version>
 				<configuration>
 					<includes>
-						<include>**/*IntegrationTest.java</include>
+						<include>**/integration/**/*Test.java</include>
+						<include>**/system/**/*Test.java</include>
 					</includes>
 				</configuration>
 				<executions>
@@ -225,7 +227,7 @@
 				</executions>
 			</plugin>
 
-			<!-- Mutation testing (slow, not bound to a phase): mvn test-compile pitest:mutationCoverage -->
+			<!-- Mutation testing (slow, not bound to a phase): mvn test-compile pitest:mutationCoverage; unit tests only -->
 			<plugin>
 				<groupId>org.pitest</groupId>
 				<artifactId>pitest-maven</artifactId>
@@ -239,7 +241,8 @@
 				</dependencies>
 				<configuration>
 					<excludedTestClasses>
-						<param>pt.psoft.g1.psoftg1.*IntegrationTest</param>
+						<param>pt.psoft.g1.psoftg1*.integration.*</param>
+						<param>pt.psoft.g1.psoftg1*.system.*</param>
 					</excludedTestClasses>
 					<outputFormats>
 						<outputFormat>HTML</outputFormat>
