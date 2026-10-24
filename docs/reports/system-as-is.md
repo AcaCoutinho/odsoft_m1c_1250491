@@ -100,3 +100,78 @@ O projeto tem 21 classes de teste e 2 classes utilitárias (`testutils`). São e
 
 **Resumo:** 89 testes unitários e 13 de integração.
 
+Os relatórios desta secção e da secção 5 foram gerados com os plugins de medição adicionados no commit `02db4c2` (Surefire, Failsafe, JaCoCo, PIT e PMD). O código da aplicação e os testes são os originais. Nesse commit, as classes `*IntegrationTest` correm no Failsafe e as restantes no Surefire. Por isso, `LendingServiceImplTest` e `PsoftG1ApplicationTests` aparecem no relatório do Surefire, apesar de serem testes de integração.
+
+| Plugin | Testes | Falhas | Tempo |
+|---|---:|---:|---:|
+| Surefire | 93 | 0 | 4,4 s |
+| Failsafe | 9 | 0 | 5,8 s |
+
+![Relatório Surefire](/docs/reports/sys-as-is/surefire-report.png)
+
+![Relatório Failsafe](/docs/reports/sys-as-is/failsafe-report.png)
+
+### 4.2 Cobertura
+
+Cobertura medida com o JaCoCo, com os testes unitários e de integração juntos:
+
+| Métrica | Cobertos | Total | Cobertura |
+|---|---:|---:|---:|
+| Instruções | 2 859 | 21 744 | 13% |
+| Branches | 117 | 2 585 | 4% |
+| Linhas | 547 | 2 867 | 19% |
+| Métodos | 201 | 1 174 | 17% |
+| Classes | 70 | 139 | 50% |
+
+- **Modelo de domínio:** é a única camada com cobertura relevante, entre 55% (`usermanagement.model`) e 93% (`genremanagement.model`) das instruções.
+- **Controllers (`api`) e serviços:** a cobertura fica entre 0% e 3%. As exceções são `lendingmanagement.services` (20%), `shared.services` (15%) e `authormanagement.services` (9%).
+- **`configuration`:** tem 97%, mas só porque o contexto Spring arranca no `PsoftG1ApplicationTests`. Nenhum teste verifica estas classes (ver 4.3).
+- **`bootstrapping`:** tem 0%, porque o perfil `bootstrap` não está ativo nos testes.
+
+![Relatório JaCoCo](/docs/reports/sys-as-is/jacoco-report.png)
+
+### 4.3 Eficácia (mutation testing)
+
+Mutation testing com o PIT, só com os testes unitários (as classes `*IntegrationTest` estão excluídas):
+
+| Métrica | Valor |
+|---|---:|
+| Classes analisadas | 123 |
+| Cobertura de linhas | 19% (526/2 831) |
+| Mutation coverage | **5%** (143/3 134) |
+| Test strength | 63% (143/228) |
+
+- **Mutation coverage de 5%:** 2 991 das 3 134 mutações não são detetadas. Destas, 2 906 estão em código que nenhum teste executa.
+- **Test strength de 63%:** das 228 mutações em código executado pelos testes, 85 sobrevivem. Os testes executam esse código mas nem sempre verificam o resultado.
+- **Camadas `api` e `services`:** 0% de mutation coverage em quase todos os pacotes. A exceção é `lendingmanagement.services` (8%).
+- **`configuration`:** 99% de cobertura de linhas, mas só 7% de mutation coverage e 8% de test strength. Confirma que a cobertura vem só do arranque do contexto.
+- **Modelo:** entre 11% (`usermanagement.model`) e 71% (`genremanagement.model`) de mutation coverage.
+
+![Relatório PIT](/docs/reports/sys-as-is/pit-test-coverage-report.png)
+
+## 5. Indicadores de qualidade
+
+### 5.1 Análise estática (PMD)
+
+O PMD, com o ruleset por defeito do `maven-pmd-plugin`, encontra **63 violações em 28 ficheiros**:
+
+| Prioridade | Violações |
+|---|---:|
+| 2 | 1 |
+| 3 | 5 |
+| 4 | 57 |
+
+| Regra | Violações |
+|---|---:|
+| `UnnecessaryImport` | 45 |
+| `UselessParentheses` | 12 (11 no `Bootstrapper`) |
+| `UnusedLocalVariable` | 2 |
+| `UnnecessarySemicolon` | 1 |
+| `AvoidBranchingStatementAsLastInLoop` | 1 |
+| `UnusedPrivateMethod` | 1 |
+| `UnusedPrivateField` | 1 |
+
+A violação mais grave (prioridade 2) é um `AvoidBranchingStatementAsLastInLoop` em `shared/services/FileStorageService.java:135`. O mesmo ficheiro tem mais duas de prioridade 3: uma variável local e um método privado que não são usados. As restantes são sobretudo imports não usados, ou seja, código morto sem impacto funcional.
+
+![Relatório PMD](/docs/reports/sys-as-is/pmd-report.png)
+
