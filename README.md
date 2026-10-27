@@ -85,14 +85,14 @@ O Failsafe corre o que está em `integration/` e `system/`; o Surefire corre o r
 
 ## Deploy (CI/CD)
 
-Job Jenkins do tipo Multibranch Pipeline (`Jenkinsfile`). DEV e PROD correm na máquina do Jenkins, cada um num projeto Docker Compose próprio (rede, volume e base de dados PostgreSQL 16 separados), a partir do mesmo `psoft-project-2024-g1/docker-compose.yml`:
+Job Jenkins do tipo Multibranch Pipeline (`Jenkinsfile`). DEV e PROD correm na máquina do Jenkins, cada um num projeto Docker Compose próprio (rede e container separados), a partir do mesmo `psoft-project-2024-g1/docker-compose.yml`:
 
-| Ambiente | Projeto Compose | Perfil Spring | Porta | Credencial Jenkins (Secret text) |
-|---|---|---|---|---|
-| DEV | `app-dev` | `dev` (+ `bootstrap`: dados de exemplo) | 8081 | `db-dev-password` |
-| PROD | `app-prod` | `prod` | 8082 | `db-prod-password` |
+| Ambiente | Projeto Compose | Perfil Spring | Porta |
+|---|---|---|---|
+| DEV | `app-dev` | `dev` (+ `bootstrap`: dados de exemplo) | 8081 |
+| PROD | `app-prod` | `prod` | 8082 |
 
-A base de dados não publica portas: só a aplicação lhe acede, pela rede do projeto.
+A base de dados é a mesma H2 em memória de quando se corre localmente, dentro do container da aplicação: os dados perdem-se a cada deploy ou restart.
 
 Fluxo de branches:
 
@@ -103,15 +103,3 @@ Fluxo de branches:
 | `main` | O anterior com `main-<BUILD_NUMBER>`, deploy em DEV, aprovação manual e deploy em PROD |
 
 Só há deploy se o build estiver `SUCCESS` (um quality gate falhado deixa-o `UNSTABLE`). Depois de cada deploy, o pipeline espera por `http://localhost:<porta>/actuator/health`; se falhar, volta a pôr a imagem que estava a correr e o build falha.
-
-### Primeiro deploy em PROD
-
-O perfil `prod` usa `ddl-auto: validate`, que não cria tabelas. Com a base de dados vazia, criar o schema uma vez antes do primeiro deploy (na máquina do Jenkins, a partir da raiz do repositório, com a imagem já construída por um build de `main`):
-
-```bash
-export IMAGE_TAG=main-<n> SPRING_PROFILE=prod APP_PORT=8082 DB_NAME=psoft_prod DB_USER=psoft DB_PASSWORD=<db-prod-password>
-docker compose -p app-prod -f psoft-project-2024-g1/docker-compose.yml run --rm \
-  -e SPRING_JPA_HIBERNATE_DDL_AUTO=update -e SPRING_MAIN_WEB_APPLICATION_TYPE=none app
-```
-
-O comando arranca a aplicação sem servidor web, cria as tabelas e termina. Depois, voltar a correr o build de `main` no Jenkins.

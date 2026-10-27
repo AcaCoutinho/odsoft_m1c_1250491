@@ -107,7 +107,7 @@ pipeline {
                     steps { sh 'docker build -t psoft-g1:$IMAGE_TAG psoft-project-2024-g1' }
                 }
                 stage('DEV') {
-                    steps { deploy('dev', 8081, 'db-dev-password') }
+                    steps { deploy('dev', 8081) }
                 }
                 stage('PROD') {
                     when {
@@ -120,7 +120,7 @@ pipeline {
                         message 'Deploy this build to production?'
                         ok 'Deploy'
                     }
-                    steps { deploy('prod', 8082, 'db-prod-password') }
+                    steps { deploy('prod', 8082) }
                 }
             }
         }
@@ -129,25 +129,21 @@ pipeline {
 
 // Starts image psoft-g1:$IMAGE_TAG in the Compose project app-<env> and checks /actuator/health.
 // If the check fails, the image that was running before is started again and the build fails.
-// The DB password comes from the Jenkins "Secret text" credential passwordId.
-def deploy(String appEnv, int port, String passwordId) {
-    withEnv(["PROJECT=app-${appEnv}", "SPRING_PROFILE=${appEnv}", "APP_PORT=${port}",
-             "DB_NAME=psoft_${appEnv}", "DB_USER=psoft"]) {
-        withCredentials([string(credentialsId: passwordId, variable: 'DB_PASSWORD')]) {
-            sh '''
-                COMPOSE="docker compose -p $PROJECT -f psoft-project-2024-g1/docker-compose.yml"
-                # Empty on the first deploy: there is nothing to roll back to
-                PREVIOUS=$($COMPOSE ps -q app | xargs -r docker inspect --format '{{.Config.Image}}')
-                $COMPOSE up -d
-                if ! curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "http://localhost:$APP_PORT/actuator/health"; then
-                    $COMPOSE logs --tail 50 app
-                    if [ -n "$PREVIOUS" ]; then
-                        echo "Health check failed: rolling back to $PREVIOUS"
-                        IMAGE_TAG="${PREVIOUS##*:}" $COMPOSE up -d app
-                    fi
-                    exit 1
+def deploy(String appEnv, int port) {
+    withEnv(["PROJECT=app-${appEnv}", "SPRING_PROFILE=${appEnv}", "APP_PORT=${port}"]) {
+        sh '''
+            COMPOSE="docker compose -p $PROJECT -f psoft-project-2024-g1/docker-compose.yml"
+            # Empty on the first deploy: there is nothing to roll back to
+            PREVIOUS=$($COMPOSE ps -q app | xargs -r docker inspect --format '{{.Config.Image}}')
+            $COMPOSE up -d
+            if ! curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "http://localhost:$APP_PORT/actuator/health"; then
+                $COMPOSE logs --tail 50 app
+                if [ -n "$PREVIOUS" ]; then
+                    echo "Health check failed: rolling back to $PREVIOUS"
+                    IMAGE_TAG="${PREVIOUS##*:}" $COMPOSE up -d app
                 fi
-            '''
-        }
+                exit 1
+            fi
+        '''
     }
 }

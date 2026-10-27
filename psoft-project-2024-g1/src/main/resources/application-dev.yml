@@ -1,17 +1,9 @@
-# DEV profile: PostgreSQL in the "db" container of the same Compose project (see docker-compose.yml).
+# DEV profile: in-memory H2 from application.properties, filled by the bootstrap profile (group in application.properties).
 spring:
-  datasource:
-    url: jdbc:postgresql://db:5432/${DB_NAME}
-    driver-class-name: org.postgresql.Driver
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
-  h2:
-    console:
-      enabled: false
 
 management:
   endpoints:

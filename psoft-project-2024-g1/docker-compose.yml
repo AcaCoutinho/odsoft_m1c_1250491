@@ -1,38 +1,13 @@
-# One file for DEV and PROD; the Compose project name keeps them apart (own network, volume and DB):
+# One file for DEV and PROD; the Compose project name keeps them apart (own network and container):
 #   docker compose -p app-dev  -f docker-compose.yml up -d
 #   docker compose -p app-prod -f docker-compose.yml up -d
+# The DB is in-memory H2 inside the app container: its data is lost when the container is recreated.
 # Every variable is exported by the Jenkinsfile (deploy function); missing ones abort the command.
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${DB_NAME:?}
-      POSTGRES_USER: ${DB_USER:?}
-      # Only applied when the volume is first created
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
-    volumes:
-      - db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-    # No ports: the DB is only reachable from the app, on the project network
-
   app:
     image: psoft-g1:${IMAGE_TAG:?}
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:?}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "${APP_PORT:?}:8080"
-    depends_on:
-      db:
-        condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  db-data:
