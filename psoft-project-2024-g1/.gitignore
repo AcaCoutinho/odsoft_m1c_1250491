@@ -48,3 +48,6 @@ Thumbs.db
 *.mov
 *.wmv
 
+
+# Local Compose variables (DB_PASSWORD): never commit
+.env

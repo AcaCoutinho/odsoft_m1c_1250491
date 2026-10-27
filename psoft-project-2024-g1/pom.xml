@@ -45,6 +45,18 @@
 			<artifactId>h2</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		<!-- DEV/PROD containers (application-dev.yml, application-prod.yml); H2 stays for local runs and tests -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- /actuator/health, used by the pipeline after each deploy -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 
 		<!-- security, authentication & authorization -->
 		<dependency>

@@ -1,15 +1,11 @@
 // CI/CD pipeline for the Library Management service (Multibranch Pipeline job).
 // Every branch: build, static analysis, unit/integration/system tests, coverage, mutation testing, archive.
-// dev  -> deploy to DEV.
-// main -> deploy to STAGING, then to PROD after manual approval.
+// dev  -> Docker image + deploy to DEV.
+// main -> Docker image + deploy to DEV, then to PROD after manual approval.
+// DEV and PROD are Compose projects (app-dev, app-prod) on this Jenkins machine.
 
 pipeline {
     agent any
-
-    tools {
-        maven 'maven-3.9'
-        jdk 'jdk-17'
-    }
 
     options {
         disableConcurrentBuilds()
@@ -96,15 +92,22 @@ pipeline {
 
         stage('Deploy') {
             // A failed quality gate leaves the build UNSTABLE: nothing gets deployed.
-            when { expression { currentBuild.currentResult == 'SUCCESS' } }
-            stages {
-                stage('DEV') {
-                    when { branch 'dev' }
-                    steps { deploy('dev', 'vm-dev', 8080) }
+            when {
+                allOf {
+                    expression { currentBuild.currentResult == 'SUCCESS' }
+                    anyOf { branch 'dev'; branch 'main' }
                 }
-                stage('STAGING') {
-                    when { branch 'main' }
-                    steps { deploy('staging', 'vm-dev', 8081) }
+            }
+            environment {
+                // BUILD_NUMBER is per branch in a Multibranch job: the branch keeps dev #5 and main #5 apart
+                IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+            }
+            stages {
+                stage('Image') {
+                    steps { sh 'docker build -t psoft-g1:$IMAGE_TAG psoft-project-2024-g1' }
+                }
+                stage('DEV') {
+                    steps { deploy('dev', 8081, 'db-dev-password') }
                 }
                 stage('PROD') {
                     when {
@@ -117,33 +120,33 @@ pipeline {
                         message 'Deploy this build to production?'
                         ok 'Deploy'
                     }
-                    steps { deploy('prod', 'vm-prod', 8080) }
+                    steps { deploy('prod', 8082, 'db-prod-password') }
                 }
             }
         }
     }
 }
 
-// Copies the jar built by this run to a VM, restarts it there and smoke-tests the API.
-// VM requirements: Java 17+, and an SSH user whose private key is the Jenkins credential 'vm-ssh'.
-// The extra Spring profile (dev/staging/prod) picks up an application-<env>.properties when one exists.
-def deploy(String appEnv, String host, int port) {
-    withEnv(["APP_ENV=${appEnv}", "HOST=${host}", "PORT=${port}"]) {
-        withCredentials([sshUserPrivateKey(credentialsId: 'vm-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+// Starts image psoft-g1:$IMAGE_TAG in the Compose project app-<env> and checks /actuator/health.
+// If the check fails, the image that was running before is started again and the build fails.
+// The DB password comes from the Jenkins "Secret text" credential passwordId.
+def deploy(String appEnv, int port, String passwordId) {
+    withEnv(["PROJECT=app-${appEnv}", "SPRING_PROFILE=${appEnv}", "APP_PORT=${port}",
+             "DB_NAME=psoft_${appEnv}", "DB_USER=psoft"]) {
+        withCredentials([string(credentialsId: passwordId, variable: 'DB_PASSWORD')]) {
             sh '''
-                OPTS="-i $SSH_KEY -o StrictHostKeyChecking=accept-new"
-                DIR="psoft-g1-$APP_ENV"
-                ssh $OPTS "$SSH_USER@$HOST" "mkdir -p $DIR"
-                scp $OPTS psoft-project-2024-g1/target/psoft-g1-*.jar "$SSH_USER@$HOST:$DIR/app.jar.new"
-                # Stop the running instance, swap the jar, start the new one detached (EOF must stay at column 0)
-                ssh $OPTS "$SSH_USER@$HOST" sh -s -- "$DIR" "$PORT" "$APP_ENV" <<'EOF'
-cd "$1"
-pkill -f "$PWD/app.jar" && while pgrep -f "$PWD/app.jar" > /dev/null; do sleep 1; done
-mv app.jar.new app.jar
-nohup java -jar "$PWD/app.jar" --server.port="$2" --spring.profiles.active="bootstrap,$3" > app.log 2>&1 < /dev/null &
-EOF
-                curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "http://$HOST:$PORT/api-docs" \
-                    || { ssh $OPTS "$SSH_USER@$HOST" "tail -50 $DIR/app.log"; exit 1; }
+                COMPOSE="docker compose -p $PROJECT -f psoft-project-2024-g1/docker-compose.yml"
+                # Empty on the first deploy: there is nothing to roll back to
+                PREVIOUS=$($COMPOSE ps -q app | xargs -r docker inspect --format '{{.Config.Image}}')
+                $COMPOSE up -d
+                if ! curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "http://localhost:$APP_PORT/actuator/health"; then
+                    $COMPOSE logs --tail 50 app
+                    if [ -n "$PREVIOUS" ]; then
+                        echo "Health check failed: rolling back to $PREVIOUS"
+                        IMAGE_TAG="${PREVIOUS##*:}" $COMPOSE up -d app
+                    fi
+                    exit 1
+                fi
             '''
         }
     }

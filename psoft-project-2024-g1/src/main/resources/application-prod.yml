@@ -1,0 +1,21 @@
+# PROD profile: PostgreSQL in the "db" container of the same Compose project (see docker-compose.yml).
+# validate never changes the schema: the tables must already exist (see README, first PROD deploy).
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/${DB_NAME}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

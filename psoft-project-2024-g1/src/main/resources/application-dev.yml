@@ -1,0 +1,20 @@
+# DEV profile: PostgreSQL in the "db" container of the same Compose project (see docker-compose.yml).
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/${DB_NAME}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  h2:
+    console:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
