@@ -1,0 +1,13 @@
+# One file for DEV and PROD; the Compose project name keeps them apart (own network and container):
+#   docker compose -p app-dev  -f docker-compose.yml up -d
+#   docker compose -p app-prod -f docker-compose.yml up -d
+# The DB is in-memory H2 inside the app container: its data is lost when the container is recreated.
+# Every variable is exported by the Jenkinsfile (deploy function); missing ones abort the command.
+services:
+  app:
+    image: psoft-g1:${IMAGE_TAG:?}
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:?}
+    ports:
+      - "${APP_PORT:?}:8080"
+    restart: unless-stopped

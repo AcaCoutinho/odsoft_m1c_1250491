@@ -82,3 +82,24 @@ O Failsafe corre o que está em `integration/` e `system/`; o Surefire corre o r
 | `maven-pmd-plugin` | 3.25.0 | `verify` | Análise estática com o ruleset por defeito | `target/pmd.xml`, `target/reports/pmd.html` |
 | `pitest-maven` + `pitest-junit5-plugin` | 1.16.2 + 1.2.1 | Manual | Mutation testing (só testes unitários) | `target/pit-reports/index.html`, `target/pit-reports/mutations.xml` |
 | `sonar-maven-plugin` | 5.1.0.4751 | Manual | Envio da análise para o SonarQube (lê o `jacoco.xml`) | No servidor SonarQube |
+
+## Deploy (CI/CD)
+
+Job Jenkins do tipo Multibranch Pipeline (`Jenkinsfile`). DEV e PROD correm na máquina do Jenkins, cada um num projeto Docker Compose próprio (rede e container separados), a partir do mesmo `psoft-project-2024-g1/docker-compose.yml`:
+
+| Ambiente | Projeto Compose | Perfil Spring | Porta |
+|---|---|---|---|
+| DEV | `app-dev` | `dev` (+ `bootstrap`: dados de exemplo) | 8081 |
+| PROD | `app-prod` | `prod` | 8082 |
+
+A base de dados é a mesma H2 em memória de quando se corre localmente, dentro do container da aplicação: os dados perdem-se a cada deploy ou restart.
+
+Fluxo de branches:
+
+| Branch | Pipeline |
+|---|---|
+| qualquer | Build, análise estática, testes, cobertura, mutation testing, arquivo do jar |
+| `dev` | O anterior, imagem `psoft-g1:dev-<BUILD_NUMBER>` e deploy em DEV |
+| `main` | O anterior com `main-<BUILD_NUMBER>`, deploy em DEV, aprovação manual e deploy em PROD |
+
+Só há deploy se o build estiver `SUCCESS` (um quality gate falhado deixa-o `UNSTABLE`). Depois de cada deploy, o pipeline espera por `http://localhost:<porta>/actuator/health`; se falhar, volta a pôr a imagem que estava a correr e o build falha.

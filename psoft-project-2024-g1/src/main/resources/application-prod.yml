@@ -1,0 +1,16 @@
+# PROD profile: in-memory H2 from application.properties.
+# The DB starts empty on every start, so the schema must be created (update): validate would always fail.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

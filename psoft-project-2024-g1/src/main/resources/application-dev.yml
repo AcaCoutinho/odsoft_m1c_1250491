@@ -1,0 +1,12 @@
+# DEV profile: in-memory H2 from application.properties, filled by the bootstrap profile (group in application.properties).
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
