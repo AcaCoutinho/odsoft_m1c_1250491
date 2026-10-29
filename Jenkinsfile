@@ -1,7 +1,7 @@
 // CI/CD pipeline for the Library Management service (Multibranch Pipeline job).
 // Every branch: build, static analysis, unit/integration/system tests, coverage, mutation testing, archive.
-// dev  -> Docker image + deploy to DEV.
-// main -> Docker image + deploy to DEV, then to PROD after manual approval.
+// dev  -> Docker image + smoke tests + deploy to DEV.
+// main -> Docker image + smoke tests + deploy to DEV, then to PROD after manual approval.
 // DEV and PROD are Compose projects (app-dev, app-prod) on this Jenkins machine.
 
 pipeline {
@@ -99,12 +99,33 @@ pipeline {
                 }
             }
             environment {
-                // BUILD_NUMBER is per branch in a Multibranch job: the branch keeps dev #5 and main #5 apart
                 IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
             }
             stages {
                 stage('Image') {
                     steps { sh 'docker build -t psoft-g1:$IMAGE_TAG psoft-project-2024-g1' }
+                }
+                stage('Smoke Tests') {
+                    // The new image runs in a throwaway container (random host port) once per profile, before any environment gets it:
+                    // it must start, report healthy, run with that profile and serve Swagger UI and the OpenAPI document.
+                    steps {
+                        sh '''
+                            for PROFILE in dev prod; do
+                                CID=$(docker run -d -P -e SPRING_PROFILES_ACTIVE=$PROFILE psoft-g1:$IMAGE_TAG)
+                                URL="http://localhost:$(docker port "$CID" 8080 | head -1 | sed 's/.*://')"
+                                if ! { curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "$URL/actuator/health" &&
+                                       curl -fsS "$URL/api/public/environment" | grep -qw "$PROFILE" &&
+                                       curl -fsSL -o /dev/null "$URL/swagger-ui" &&
+                                       curl -fsS "$URL/api-docs" | grep -q '"openapi"'; }; then
+                                    echo "Smoke tests failed for profile $PROFILE"
+                                    docker logs --tail 50 "$CID"
+                                    docker rm -f "$CID"
+                                    exit 1
+                                fi
+                                docker rm -f "$CID"
+                            done
+                        '''
+                    }
                 }
                 stage('DEV') {
                     steps { deploy('dev', 8081) }
@@ -114,7 +135,6 @@ pipeline {
                         beforeInput true
                         branch 'main'
                     }
-                    // ponytail: input holds the executor while waiting; move to agent none + stash if executors run short
                     options { timeout(time: 1, unit: 'DAYS') }
                     input {
                         message 'Deploy this build to production?'
