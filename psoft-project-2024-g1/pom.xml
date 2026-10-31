@@ -22,6 +22,9 @@
 
 		<!-- automatically run annotation processors within the incremental compilation -->
 		<m2e.apt.activation>jdt_apt</m2e.apt.activation>
+
+		<!-- same exclusion as JaCoCo, so SonarQube does not count bootstrapping as uncovered -->
+		<sonar.coverage.exclusions>**/bootstrapping/**</sonar.coverage.exclusions>
 	</properties>
 
 	<dependencies>
@@ -264,6 +267,12 @@
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.8.12</version>
+				<configuration>
+					<excludes>
+						<!-- sample data loaded by the bootstrap profile, not application logic -->
+						<exclude>pt/psoft/g1/psoftg1/bootstrapping/**</exclude>
+					</excludes>
+				</configuration>
 				<executions>
 					<execution>
 						<id>prepare-agent</id>
