@@ -1,11 +1,9 @@
 package pt.psoft.g1.psoftg1.authormanagement.integration;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import pt.psoft.g1.psoftg1.authormanagement.model.Author;
 import pt.psoft.g1.psoftg1.authormanagement.repositories.AuthorRepository;
 
@@ -14,10 +12,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Based on https://www.baeldung.com/spring-boot-testing
- * <p>Adaptations to Junit 5 with ChatGPT
+ * Integration test of the author name queries against the H2 database ({@code @DataJpaTest}, rolled back).
+ * <p>Based on https://www.baeldung.com/spring-boot-testing
  */
-@ExtendWith(SpringExtension.class)
 @DataJpaTest
 public class AuthorRepositoryIntegrationTest {
     @Autowired

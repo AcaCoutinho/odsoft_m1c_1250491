@@ -16,6 +16,10 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit, functional. Opaque box for the invariants and getters of {@link Lending}; transparent box
+ * (branch coverage) for the delay and fine calculations, with boundary values around the limit date.
+ */
 class LendingTest {
     private static final ArrayList<Author> authors = new ArrayList<>();
     private static Book book;
@@ -58,7 +62,7 @@ class LendingTest {
     }
 
     @Test
-    void ensureValidReaderNumber(){
+    void ensureNegativeSequentialIsRejected(){
         assertThrows(IllegalArgumentException.class, () -> new Lending(book, readerDetails, -1, lendingDurationInDays, fineValuePerDayInCents));
     }
 

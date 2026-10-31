@@ -16,6 +16,11 @@ import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Unit, opaque box, functional: invariants of {@link ReaderDetails} (reader, phone number and GDPR
+ * consent are mandatory; photo and interests are optional) and the optimistic concurrency of {@code applyPatch}.
+ * The {@link Reader} user is a dummy where only the details are under test.
+ */
 public class ReaderTest {
     @Test
     void ensureValidReaderDetailsAreCreated() {
