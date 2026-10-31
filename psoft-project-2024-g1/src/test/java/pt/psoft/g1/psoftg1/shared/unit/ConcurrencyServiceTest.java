@@ -8,6 +8,10 @@ import pt.psoft.g1.psoftg1.shared.services.ConcurrencyService;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * Unit, opaque box, functional: parsing of the If-Match header (quoted and unquoted ETags valid, any
+ * other text invalid).
+ */
 class ConcurrencyServiceTest {
     private final ConcurrencyService service = new ConcurrencyService();
 

@@ -9,6 +9,9 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit, opaque box, functional: format yyyy-MM-dd, no future dates and boundary on the minimum reader age.
+ */
 public class BirthDateTest {
 
     @Test

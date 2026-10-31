@@ -9,6 +9,10 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit, opaque box, functional. Format "{year}/{sequential}", with boundary values on the year
+ * (1970 .. current year) and on the sequential (>= 0).
+ */
 class LendingNumberTest {
     @Test
     void ensureLendingNumberNotNull(){
@@ -18,12 +22,10 @@ class LendingNumberTest {
     void ensureLendingNumberNotBlank(){
         assertThrows(IllegalArgumentException.class, () -> new LendingNumber(""));
     }
-    @Test
-    void ensureLendingNumberNotWrongFormat(){
-        assertThrows(IllegalArgumentException.class, () -> new LendingNumber("1/2024"));
-        assertThrows(IllegalArgumentException.class, () -> new LendingNumber("24/1"));
-        assertThrows(IllegalArgumentException.class, () -> new LendingNumber("2024-1"));
-        assertThrows(IllegalArgumentException.class, () -> new LendingNumber("2024\\1"));
+    @ParameterizedTest
+    @ValueSource(strings = {"1/2024", "24/1", "2024-1", "2024\\1"})
+    void ensureLendingNumberNotWrongFormat(String invalid){
+        assertThrows(IllegalArgumentException.class, () -> new LendingNumber(invalid));
     }
     @Test
     void ensureLendingNumberIsSetWithString() {
@@ -34,14 +36,12 @@ class LendingNumberTest {
     @Test
     void ensureLendingNumberIsSetWithSequential() {
         final LendingNumber ln = new LendingNumber(1);
-        assertNotNull(ln);
         assertEquals(LocalDate.now().getYear() + "/1", ln.toString());
     }
 
     @Test
     void ensureLendingNumberIsSetWithYearAndSequential() {
-        final LendingNumber ln = new LendingNumber(2024,1);
-        assertNotNull(ln);
+        assertEquals("2024/1", new LendingNumber(2024,1).toString());
     }
 
     @Test

@@ -2,7 +2,6 @@ package pt.psoft.g1.psoftg1.lendingmanagement.integration;
 
 import pt.psoft.g1.psoftg1.lendingmanagement.services.*;
 import org.hibernate.StaleObjectStateException;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +15,7 @@ import pt.psoft.g1.psoftg1.exceptions.LendingForbiddenException;
 import pt.psoft.g1.psoftg1.genremanagement.model.Genre;
 import pt.psoft.g1.psoftg1.genremanagement.repositories.GenreRepository;
 import pt.psoft.g1.psoftg1.lendingmanagement.model.Lending;
+import pt.psoft.g1.psoftg1.lendingmanagement.repositories.FineRepository;
 import pt.psoft.g1.psoftg1.lendingmanagement.repositories.LendingRepository;
 import pt.psoft.g1.psoftg1.readermanagement.model.ReaderDetails;
 import pt.psoft.g1.psoftg1.readermanagement.repositories.ReaderRepository;
@@ -28,6 +28,11 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Integration test of LendingService + repositories + JPA on H2, without doubles. Opaque box on the
+ * lending rules (outstanding limit, overdue lendings, optimistic concurrency). Each test runs in a
+ * transaction that is rolled back at the end.
+ */
 @Transactional
 @SpringBootTest
 class LendingServiceImplIntegrationTest {
@@ -45,6 +50,8 @@ class LendingServiceImplIntegrationTest {
     private GenreRepository genreRepository;
     @Autowired
     private AuthorRepository authorRepository;
+    @Autowired
+    private FineRepository fineRepository;
 
     private Lending lending;
     private ReaderDetails readerDetails;
@@ -98,42 +105,26 @@ class LendingServiceImplIntegrationTest {
 
     }
 
-    @AfterEach
-    void tearDown() {
-        lendingRepository.delete(lending);
-        readerRepository.delete(readerDetails);
-        userRepository.delete(reader);
-        bookRepository.delete(book);
-        genreRepository.delete(genre);
-        authorRepository.delete(author);
-    }
-
     @Test
     void testFindByLendingNumber() {
         assertThat(lendingService.findByLendingNumber(LocalDate.now().getYear() + "/999")).isPresent();
         assertThat(lendingService.findByLendingNumber(LocalDate.now().getYear() + "/1")).isEmpty();
     }
-/*
     @Test
-    void testListByReaderNumberAndIsbn() {
-
-    }
- */
-    @Test
-    void testCreate() {
+    void testCreateIsForbiddenAfterThreeOutstandingLendings() {
         var request = new CreateLendingRequest("9782826012092",
                 LocalDate.now().getYear() + "/1");
-        var lending1 = lendingService.create(request);
-        assertThat(lending1).isNotNull();
-        var lending2 = lendingService.create(request);
-        assertThat(lending2).isNotNull();
-        var lending3 = lendingService.create(request);
-        assertThat(lending3).isNotNull();
+        // boundary value analysis: the 3rd outstanding lending is allowed, the 4th is not
+        for (int i = 0; i < 3; i++) {
+            assertThat(lendingService.create(request).getReturnedDate()).isNull();
+        }
 
-        // 4th lending
         assertThrows(LendingForbiddenException.class, () -> lendingService.create(request));
+        assertThat(lendingRepository.listOutstandingByReaderNumber(readerDetails.getReaderNumber())).hasSize(3);
+    }
 
-        lendingRepository.delete(lending3);
+    @Test
+    void testCreateIsForbiddenWithAnOverdueLending() {
         lendingRepository.save(Lending.newBootstrappingLending(book,
                 readerDetails,
                 2024,
@@ -142,10 +133,10 @@ class LendingServiceImplIntegrationTest {
                 null,
                 15,
                 300));
+        var request = new CreateLendingRequest("9782826012092",
+                LocalDate.now().getYear() + "/1");
 
-        // Having an overdue lending
         assertThrows(LendingForbiddenException.class, () -> lendingService.create(request));
-
     }
 
     @Test
@@ -163,17 +154,10 @@ class LendingServiceImplIntegrationTest {
         assertThrows(StaleObjectStateException.class,
                 () -> lendingService.setReturned(year + "/" + seq, request, (notReturnedLending.getVersion()-1)));
 
-        assertDoesNotThrow(
-                () -> lendingService.setReturned(year + "/" + seq, request, notReturnedLending.getVersion()));
-    }
-/*
-    @Test
-    void testGetAverageDuration() {
-    }
+        var returned = lendingService.setReturned(year + "/" + seq, request, notReturnedLending.getVersion());
 
-    @Test
-    void testGetOverdue() {
+        assertEquals(LocalDate.now(), returned.getReturnedDate());
+        // returned late: the fine is persisted together with the lending
+        assertThat(fineRepository.findByLendingNumber(year + "/" + seq)).isPresent();
     }
-
- */
 }

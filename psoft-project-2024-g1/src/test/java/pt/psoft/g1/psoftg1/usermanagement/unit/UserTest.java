@@ -11,6 +11,9 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit, opaque box, functional and security: roles of each user type, password hashing and account state.
+ */
 class UserTest {
 
     @Test

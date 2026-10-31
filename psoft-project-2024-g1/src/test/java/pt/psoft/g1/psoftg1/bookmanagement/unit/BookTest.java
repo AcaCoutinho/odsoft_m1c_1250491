@@ -14,6 +14,10 @@ import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit, opaque box, functional: invariants of the {@link Book} aggregate (ISBN, title, genre and at
+ * least one author are mandatory) and the optimistic concurrency of patch and photo removal.
+ */
 class BookTest {
     private final String validIsbn = "9782826012092";
     private final String validTitle = "Encantos de contar";

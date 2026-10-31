@@ -1,7 +1,6 @@
 package pt.psoft.g1.psoftg1.lendingmanagement.integration;
 
 import pt.psoft.g1.psoftg1.lendingmanagement.repositories.*;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +27,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Integration test of the lending queries (JPQL and native SQL) against the H2 database, without
+ * doubles. Each test runs in a transaction that is rolled back at the end.
+ */
 @Transactional
 @SpringBootTest
 public class LendingRepositoryIntegrationTest {
@@ -97,23 +100,12 @@ public class LendingRepositoryIntegrationTest {
         lendingRepository.save(lending);
     }
 
-    @AfterEach
-    public void tearDown(){
-        lendingRepository.delete(lending);
-        readerRepository.delete(readerDetails);
-        userRepository.delete(reader);
-        bookRepository.delete(book);
-        genreRepository.delete(genre);
-        authorRepository.delete(author);
-    }
-
     @Test
     public void testSave() {
         Lending newLending = new Lending(lending.getBook(), lending.getReaderDetails(), 2, 14, 50);
         Lending savedLending = lendingRepository.save(newLending);
         assertThat(savedLending).isNotNull();
         assertThat(savedLending.getLendingNumber()).isEqualTo(newLending.getLendingNumber());
-        lendingRepository.delete(savedLending);
     }
 
     @Test

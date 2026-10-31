@@ -8,6 +8,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit, opaque box, functional: equivalence classes of the characters allowed in a name and boundary
+ * value on the column length (150).
+ */
 class NameTest {
     @Test
     void ensureNameMustNotBeNull() {
@@ -22,14 +26,6 @@ class NameTest {
     @Test
     void ensureNameMustOnlyBeAlphanumeric() {
         assertThrows(IllegalArgumentException.class, () -> new Name("Ricardo!"));
-    }
-
-    /**
-     * Text from <a href="https://www.lipsum.com/">Lorem Ipsum</a> generator.
-     */
-    @Test
-    void ensureNameMustNotBeOversize() {
-        assertThrows(IllegalArgumentException.class, () -> new Name("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut fermentum venenatis augue, a congue turpis eleifend ut. Etiam fringilla ex nulla, id quis."));
     }
 
     @Test
