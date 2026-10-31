@@ -56,7 +56,6 @@ Há uma coleção Postman em `psoft-project-2024-g1/Docs/`.
 | `mvn clean test` | Testes unitários (Surefire) |
 | `mvn clean verify` | Testes unitários e de integração, cobertura, SpotBugs, PMD e relatórios HTML |
 | `mvn test-compile pitest:mutationCoverage` | Mutation testing (PIT), cerca de 2 minutos |
-| `mvn clean verify sonar:sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.token=<token>` | Análise no SonarQube (precisa de um servidor SonarQube a correr) |
 
 Usar sempre `clean`. Com classes antigas em `target/` (por exemplo, compiladas pelo IDE), o agente do JaCoCo pode fazer falhar os testes com `VerifyError: Control flow falls through code end`.
 
@@ -81,7 +80,6 @@ O Failsafe corre o que está em `integration/` e `system/`; o Surefire corre o r
 | `spotbugs-maven-plugin` | 4.8.6.4 | `verify` | Deteção de padrões de bugs | `target/spotbugsXml.xml`, `target/site/spotbugs.html` |
 | `maven-pmd-plugin` | 3.25.0 | `verify` | Análise estática com o ruleset por defeito | `target/pmd.xml`, `target/reports/pmd.html` |
 | `pitest-maven` + `pitest-junit5-plugin` | 1.16.2 + 1.2.1 | Manual | Mutation testing (só testes unitários) | `target/pit-reports/index.html`, `target/pit-reports/mutations.xml` |
-| `sonar-maven-plugin` | 5.1.0.4751 | Manual | Envio da análise para o SonarQube (lê o `jacoco.xml`) | No servidor SonarQube |
 
 ## Deploy (CI/CD)
 
@@ -103,4 +101,6 @@ Fluxo de branches:
 | `main` | O anterior com `main-<BUILD_NUMBER>`, deploy em DEV, aprovação manual e deploy em PROD |
 
 Só há deploy se o build estiver `SUCCESS` (um quality gate falhado deixa-o `UNSTABLE`). Depois de cada deploy, o pipeline espera por `http://localhost:<porta>/actuator/health`; se falhar, volta a pôr a imagem que estava a correr e o build falha.
+
+Em `main`, antes da aprovação manual, o pipeline envia um email com o link de aprovação (`<BUILD_URL>input/`, válido 1 dia) para os endereços em `PROD_APPROVERS` e para os autores dos commits. Requer o plugin Email Extension, o SMTP configurado em Manage Jenkins → System → Extended E-mail Notification e, opcionalmente, a propriedade global `PROD_APPROVERS` (endereços separados por vírgulas) em Manage Jenkins → System → Global properties. Um erro de envio só fica no log: não impede a aprovação.
 

@@ -144,6 +144,22 @@ pipeline {
                 stage('DEV') {
                     steps { deploy('dev', 8081) }
                 }
+                // Email Extension plugin, SMTP set in Manage Jenkins > System > Extended E-mail Notification.
+                // Recipients: PROD_APPROVERS (comma-separated, a global property in Manage Jenkins > System) and the commit authors.
+                // A mail error is only logged: it never blocks the approval below.
+                stage('PROD Approval Request') {
+                    when { branch 'main' }
+                    steps {
+                        emailext(
+                            to: env.PROD_APPROVERS ?: '',
+                            recipientProviders: [developers()],
+                            subject: "PROD approval needed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                            body: """Build ${env.JOB_NAME} #${env.BUILD_NUMBER} (commit ${env.GIT_COMMIT}) is deployed to DEV and waits for approval to go to PROD.
+
+Approve or abort (expires in 1 day): ${env.BUILD_URL}input/
+Build: ${env.BUILD_URL}""")
+                    }
+                }
                 stage('PROD') {
                     when {
                         beforeInput true
