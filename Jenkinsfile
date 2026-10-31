@@ -17,7 +17,9 @@ pipeline {
     }
 
     stages {
+        // Timeouts are per stage: a pipeline-wide one would also count the PROD approval wait.
         stage('Build') {
+            options { timeout(time: 10, unit: 'MINUTES') }
             steps {
                 sh '$MVN clean compile'
             }
@@ -26,6 +28,7 @@ pipeline {
         // PMD/SpotBugs only read src/main and target/classes, and write their own files, so they run alongside the tests.
         // JaCoCo is not a separate step: its agent runs inside the test JVMs, so it stays in the Tests branch.
         stage('Analysis & Tests') {
+            options { timeout(time: 30, unit: 'MINUTES') }
             parallel {
                 stage('Static Analysis') {
                     steps {
@@ -74,6 +77,7 @@ pipeline {
         }
 
         stage('Mutation Tests') {
+            options { timeout(time: 30, unit: 'MINUTES') }
             steps {
                 sh '$MVN pitest:mutationCoverage'
                 // Baseline 2026-10-24: 13% of mutations killed.
@@ -86,7 +90,10 @@ pipeline {
 
         stage('Archive') {
             steps {
-                archiveArtifacts artifacts: 'psoft-project-2024-g1/target/psoft-g1-*.jar', fingerprint: true
+                // Provenance: which branch, build and commit produced this jar and its image (the image only exists for dev/main)
+                writeFile file: 'release.properties',
+                    text: "BRANCH=${env.BRANCH_NAME}\nBUILD=${env.BUILD_NUMBER}\nGIT_COMMIT=${env.GIT_COMMIT}\nIMAGE_TAG=${env.BRANCH_NAME}-${env.BUILD_NUMBER}\n"
+                archiveArtifacts artifacts: 'psoft-project-2024-g1/target/psoft-g1-*.jar,release.properties', fingerprint: true
             }
         }
 
@@ -103,11 +110,13 @@ pipeline {
             }
             stages {
                 stage('Image') {
-                    steps { sh 'docker build -t psoft-g1:$IMAGE_TAG psoft-project-2024-g1' }
+                    options { timeout(time: 10, unit: 'MINUTES') }
+                    // The commit goes into the image so smoke tests and deploys can check which build is running.
+                    steps { sh 'docker build --build-arg GIT_COMMIT=$GIT_COMMIT -t psoft-g1:$IMAGE_TAG psoft-project-2024-g1' }
                 }
                 stage('Smoke Tests') {
                     // The new image runs in a throwaway container (random host port) once per profile, before any environment gets it:
-                    // it must start, report healthy, run with that profile and serve Swagger UI and the OpenAPI document.
+                    // it must start, report healthy, run with that profile and this build's commit, and serve Swagger UI and the OpenAPI document.
                     steps {
                         sh '''
                             for PROFILE in dev prod; do
@@ -115,6 +124,7 @@ pipeline {
                                 URL="http://localhost:$(docker port "$CID" 8080 | head -1 | sed 's/.*://')"
                                 if ! { curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "$URL/actuator/health" &&
                                        curl -fsS "$URL/api/public/environment" | grep -qw "$PROFILE" &&
+                                       curl -fsS "$URL/api/public/environment" | grep -q "\\"commit\\":\\"$GIT_COMMIT\\"" &&
                                        curl -fsSL -o /dev/null "$URL/swagger-ui" &&
                                        curl -fsS "$URL/api-docs" | grep -q '"openapi"'; }; then
                                     echo "Smoke tests failed for profile $PROFILE"
@@ -139,31 +149,45 @@ pipeline {
                     input {
                         message 'Deploy this build to production?'
                         ok 'Deploy'
+                        // To restrict who can approve, add: submitter '<Jenkins user or group>' (admins can always approve)
+                        submitterParameter 'APPROVER'
                     }
-                    steps { deploy('prod', 8082) }
+                    steps {
+                        script { currentBuild.description = "PROD approved by ${env.APPROVER}" }
+                        deploy('prod', 8082)
+                    }
                 }
             }
         }
     }
+
+    post {
+        failure { echo "Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}. See ${env.BUILD_URL}" }
+        aborted { echo "Aborted (manually, by a timeout or by an expired PROD approval): ${env.JOB_NAME} #${env.BUILD_NUMBER}" }
+    }
 }
 
-// Starts image psoft-g1:$IMAGE_TAG in the Compose project app-<env> and checks /actuator/health.
+// Starts image psoft-g1:$IMAGE_TAG in the Compose project app-<env>, checks /actuator/health and that the running app reports this build's commit.
 // If the check fails, the image that was running before is started again and the build fails.
+// The lock serialises deploys to one environment across branches (disableConcurrentBuilds only covers one branch).
 def deploy(String appEnv, int port) {
-    withEnv(["PROJECT=app-${appEnv}", "SPRING_PROFILE=${appEnv}", "APP_PORT=${port}"]) {
-        sh '''
-            COMPOSE="docker compose -p $PROJECT -f psoft-project-2024-g1/docker-compose.yml"
-            # Empty on the first deploy: there is nothing to roll back to
-            PREVIOUS=$($COMPOSE ps -q app | xargs -r docker inspect --format '{{.Config.Image}}')
-            $COMPOSE up -d
-            if ! curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "http://localhost:$APP_PORT/actuator/health"; then
-                $COMPOSE logs --tail 50 app
-                if [ -n "$PREVIOUS" ]; then
-                    echo "Health check failed: rolling back to $PREVIOUS"
-                    IMAGE_TAG="${PREVIOUS##*:}" $COMPOSE up -d app
+    lock(resource: "psoft-g1-${appEnv}") {
+        withEnv(["PROJECT=app-${appEnv}", "SPRING_PROFILE=${appEnv}", "APP_PORT=${port}"]) {
+            sh '''
+                COMPOSE="docker compose -p $PROJECT -f psoft-project-2024-g1/docker-compose.yml"
+                # Empty on the first deploy: there is nothing to roll back to
+                PREVIOUS=$($COMPOSE ps -q app | xargs -r docker inspect --format '{{.Config.Image}}')
+                $COMPOSE up -d
+                if ! { curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "http://localhost:$APP_PORT/actuator/health" &&
+                       curl -fsS "http://localhost:$APP_PORT/api/public/environment" | grep -q "\\"commit\\":\\"$GIT_COMMIT\\""; }; then
+                    $COMPOSE logs --tail 50 app
+                    if [ -n "$PREVIOUS" ]; then
+                        echo "Health or commit check failed: rolling back to $PREVIOUS"
+                        IMAGE_TAG="${PREVIOUS##*:}" $COMPOSE up -d app
+                    fi
+                    exit 1
                 fi
-                exit 1
-            fi
-        '''
+            '''
+        }
     }
 }

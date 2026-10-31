@@ -20,9 +20,10 @@ public class EnvironmentApi {
 
 	private final Environment environment;
 
-	@Operation(summary = "Shows the active Spring profiles: dev or prod in the deployed environments")
+	@Operation(summary = "Shows the active Spring profiles (dev or prod in the deployed environments) and the commit the image was built from")
 	@GetMapping("environment")
-	public Map<String, List<String>> environment() {
-		return Map.of("activeProfiles", List.of(environment.getActiveProfiles()));
+	public Map<String, Object> environment() {
+		return Map.of("activeProfiles", List.of(environment.getActiveProfiles()),
+				"commit", environment.getProperty("APP_COMMIT", "local"));
 	}
 }
