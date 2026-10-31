@@ -5,5 +5,8 @@ WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app && chown app:app /app
 USER app
 COPY target/*.jar app.jar
+# Build commit, shown by /api/public/environment (set by the Jenkinsfile; after COPY so it does not invalidate the layers above)
+ARG GIT_COMMIT=local
+ENV APP_COMMIT=$GIT_COMMIT
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

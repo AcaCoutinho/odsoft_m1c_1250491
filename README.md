@@ -103,3 +103,4 @@ Fluxo de branches:
 | `main` | O anterior com `main-<BUILD_NUMBER>`, deploy em DEV, aprovação manual e deploy em PROD |
 
 Só há deploy se o build estiver `SUCCESS` (um quality gate falhado deixa-o `UNSTABLE`). Depois de cada deploy, o pipeline espera por `http://localhost:<porta>/actuator/health`; se falhar, volta a pôr a imagem que estava a correr e o build falha.
+
