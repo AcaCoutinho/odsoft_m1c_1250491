@@ -120,7 +120,7 @@ pipeline {
                     steps {
                         sh '''
                             for PROFILE in dev prod; do
-                                CID=$(docker run -d -P -e SPRING_PROFILES_ACTIVE=$PROFILE psoft-g1:$IMAGE_TAG)
+                                CID=$(docker run -d -P --label smoke=$BUILD_TAG -e SPRING_PROFILES_ACTIVE=$PROFILE psoft-g1:$IMAGE_TAG)
                                 URL="http://localhost:$(docker port "$CID" 8080 | head -1 | sed 's/.*://')"
                                 if ! { curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "$URL/actuator/health" &&
                                        curl -fsS "$URL/api/public/environment" | grep -qw "$PROFILE" &&
@@ -136,27 +136,9 @@ pipeline {
                             done
                         '''
                     }
-                }
-                stage('Smoke Tests') {
-                    // The new image runs in a throwaway container (random host port) once per profile, before any environment gets it:
-                    // it must start, report healthy, run with that profile and serve Swagger UI and the OpenAPI document.
-                    steps {
-                        sh '''
-                            for PROFILE in dev prod; do
-                                CID=$(docker run -d -P -e SPRING_PROFILES_ACTIVE=$PROFILE psoft-g1:$IMAGE_TAG)
-                                URL="http://localhost:$(docker port "$CID" 8080 | head -1 | sed 's/.*://')"
-                                if ! { curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null "$URL/actuator/health" &&
-                                       curl -fsS "$URL/api/public/environment" | grep -qw "$PROFILE" &&
-                                       curl -fsSL -o /dev/null "$URL/swagger-ui" &&
-                                       curl -fsS "$URL/api-docs" | grep -q '"openapi"'; }; then
-                                    echo "Smoke tests failed for profile $PROFILE"
-                                    docker logs --tail 50 "$CID"
-                                    docker rm -f "$CID"
-                                    exit 1
-                                fi
-                                docker rm -f "$CID"
-                            done
-                        '''
+                    post {
+                        // Also removes the container when the build is aborted or times out mid-test
+                        always { sh 'docker ps -aq --filter label=smoke=$BUILD_TAG | xargs -r docker rm -f' }
                     }
                 }
                 stage('DEV') {
@@ -209,6 +191,8 @@ def deploy(String appEnv, int port) {
                     fi
                     exit 1
                 fi
+                # Keeps the 5 newest psoft-g1 images; rmi refuses images used by a container, so the DEV/PROD ones stay
+                docker images psoft-g1 --format '{{.Repository}}:{{.Tag}}' | tail -n +6 | xargs -r docker rmi || true
             '''
         }
     }
