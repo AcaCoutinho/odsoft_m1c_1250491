@@ -132,6 +132,32 @@ public class ReaderTest {
     }
 
     @Test
+    void ensureOptionalConsentsAreStored() {
+        final var details = new ReaderDetails(1, Reader.newReader("ana@gmail.com", "Anaanaana!1", "Ana Silva"),
+                "2000-01-01", "912345678", true, true, true, null, null);
+
+        assertTrue(details.isMarketingConsent());
+        assertTrue(details.isThirdPartySharingConsent());
+
+        final var withoutConsents = new ReaderDetails(2, Reader.newReader("rui@gmail.com", "Ruiruirui!1", "Rui Costa"),
+                "2000-01-01", "912345678", true, false, false, null, null);
+        assertFalse(withoutConsents.isMarketingConsent());
+        assertFalse(withoutConsents.isThirdPartySharingConsent());
+    }
+
+    @Test
+    void ensurePatchChangesUsernameAndPhoto() {
+        final ReaderDetails details = readerDetailsWithVersion(2);
+        final var request = new UpdateReaderRequest();
+        request.setUsername("ana.silva@gmail.com");
+
+        details.applyPatch(2, request, "nova.jpg", null);
+
+        assertEquals("ana.silva@gmail.com", details.getReader().getUsername());
+        assertEquals("nova.jpg", details.getPhoto().getPhotoFile());
+    }
+
+    @Test
     void ensurePatchWithInvalidPhoneNumberIsRejected() {
         final ReaderDetails details = readerDetailsWithVersion(2);
         final var request = new UpdateReaderRequest();

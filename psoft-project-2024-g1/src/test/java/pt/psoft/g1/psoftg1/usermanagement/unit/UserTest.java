@@ -46,6 +46,26 @@ class UserTest {
     }
 
     @Test
+    void ensureReaderAndLibrarianKeepTheirName() {
+        assertEquals("Ana Silva", Reader.newReader("ana@gmail.com", "Anaanaana!1", "Ana Silva").getName().toString());
+        assertEquals("Maria Roberta", Librarian.newLibrarian("maria@gmail.com", "Mariaroberta!123", "Maria Roberta").getName().toString());
+    }
+
+    @Test
+    void ensureRoleAuthorityIsTheRoleName() {
+        assertEquals(Role.READER, new Role(Role.READER).getAuthority());
+    }
+
+    @Test
+    void ensureNewUserCanAuthenticate() {
+        final User user = User.newUser("ana@gmail.com", "Anaanaana!1", "Ana Silva");
+        assertTrue(user.isEnabled());
+        assertTrue(user.isAccountNonLocked());
+        assertTrue(user.isAccountNonExpired());
+        assertTrue(user.isCredentialsNonExpired());
+    }
+
+    @Test
     void ensureDisabledUserCannotAuthenticate() {
         final User user = User.newUser("ana@gmail.com", "Anaanaana!1", "Ana Silva");
         user.setEnabled(false);

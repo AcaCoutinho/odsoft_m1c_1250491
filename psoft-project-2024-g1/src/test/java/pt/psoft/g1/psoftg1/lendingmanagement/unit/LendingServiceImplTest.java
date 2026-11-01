@@ -146,7 +146,7 @@ class LendingServiceImplTest {
         when(lendingRepository.findByLendingNumber("2024/1")).thenReturn(Optional.of(lending));
         when(lendingRepository.save(lending)).thenReturn(lending);
 
-        service.setReturned("2024/1", new SetLendingReturnedRequest("Gostei"), 0);
+        assertSame(lending, service.setReturned("2024/1", new SetLendingReturnedRequest("Gostei"), 0));
 
         assertEquals(LocalDate.now(), lending.getReturnedDate());
         verifyNoInteractions(fineRepository);
@@ -185,5 +185,17 @@ class LendingServiceImplTest {
         assertEquals(List.of(returned, outstanding), service.listByReaderNumberAndIsbn(READER_NUMBER, ISBN, Optional.empty()));
         assertEquals(List.of(returned), service.listByReaderNumberAndIsbn(READER_NUMBER, ISBN, Optional.of(true)));
         assertEquals(List.of(outstanding), service.listByReaderNumberAndIsbn(READER_NUMBER, ISBN, Optional.of(false)));
+    }
+
+    @Test
+    void listByReaderNumberAndIsbnRemovesConsecutiveLendingsThatDoNotMatch() {
+        final Lending outstanding1 = outstandingLendingStartedDaysAgo(1);
+        final Lending outstanding2 = outstandingLendingStartedDaysAgo(2);
+        final Lending returned = Lending.newBootstrappingLending(book, readerDetails, 2024, 1,
+                LocalDate.now().minusDays(5), LocalDate.now(), LENDING_DURATION, FINE_PER_DAY);
+        when(lendingRepository.listByReaderNumberAndIsbn(READER_NUMBER, ISBN))
+                .thenReturn(new ArrayList<>(List.of(outstanding1, outstanding2, returned)));
+
+        assertEquals(List.of(returned), service.listByReaderNumberAndIsbn(READER_NUMBER, ISBN, Optional.of(true)));
     }
 }

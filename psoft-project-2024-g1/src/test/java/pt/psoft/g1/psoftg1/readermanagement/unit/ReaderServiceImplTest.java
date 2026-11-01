@@ -16,6 +16,7 @@ import pt.psoft.g1.psoftg1.genremanagement.repositories.GenreRepository;
 import pt.psoft.g1.psoftg1.readermanagement.model.ReaderDetails;
 import pt.psoft.g1.psoftg1.readermanagement.repositories.ReaderRepository;
 import pt.psoft.g1.psoftg1.readermanagement.services.CreateReaderRequest;
+import pt.psoft.g1.psoftg1.readermanagement.services.ReaderBookCountDTO;
 import pt.psoft.g1.psoftg1.readermanagement.services.ReaderMapper;
 import pt.psoft.g1.psoftg1.readermanagement.services.ReaderServiceImpl;
 import pt.psoft.g1.psoftg1.readermanagement.services.SearchReadersQuery;
@@ -130,10 +131,11 @@ class ReaderServiceImplTest {
 
     @Test
     void topReadersAcceptsOne() {
-        when(readerRepo.findTopReaders(any())).thenReturn(new PageImpl<>(List.of()));
+        final List<ReaderDetails> top = List.of(readerDetails(null));
+        when(readerRepo.findTopReaders(any())).thenReturn(new PageImpl<>(top));
         final ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
 
-        service.findTopReaders(1);
+        assertEquals(top, service.findTopReaders(1));
 
         verify(readerRepo).findTopReaders(pageable.capture());
         assertEquals(1, pageable.getValue().getPageSize());
@@ -149,9 +151,10 @@ class ReaderServiceImplTest {
     @Test
     void topByGenreAcceptsASingleDay() {
         final LocalDate day = LocalDate.of(2024, 2, 1);
-        when(readerRepo.findTopByGenre(any(), eq("Fantasia"), eq(day), eq(day))).thenReturn(new PageImpl<>(List.of()));
+        final var top = List.of(mock(ReaderBookCountDTO.class));
+        when(readerRepo.findTopByGenre(any(), eq("Fantasia"), eq(day), eq(day))).thenReturn(new PageImpl<>(top));
 
-        assertTrue(service.findTopByGenre("Fantasia", day, day).isEmpty());
+        assertEquals(top, service.findTopByGenre("Fantasia", day, day));
     }
 
     @Test
@@ -179,7 +182,7 @@ class ReaderServiceImplTest {
         when(readerRepo.findByReaderNumber("2024/1")).thenReturn(Optional.of(details));
         when(readerRepo.save(details)).thenReturn(details);
 
-        service.removeReaderPhoto("2024/1", 0);
+        assertEquals(Optional.of(details), service.removeReaderPhoto("2024/1", 0));
 
         assertNull(details.getPhoto());
         verify(photoRepository).deleteByPhotoFile("foto.jpg");
