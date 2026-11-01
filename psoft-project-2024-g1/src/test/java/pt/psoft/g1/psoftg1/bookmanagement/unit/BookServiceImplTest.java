@@ -4,11 +4,15 @@ import org.hibernate.StaleObjectStateException;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 import pt.psoft.g1.psoftg1.authormanagement.model.Author;
 import pt.psoft.g1.psoftg1.authormanagement.repositories.AuthorRepository;
 import pt.psoft.g1.psoftg1.bookmanagement.model.Book;
@@ -28,8 +32,10 @@ import pt.psoft.g1.psoftg1.shared.services.Page;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -196,6 +202,33 @@ class BookServiceImplTest {
         verifyNoInteractions(photoRepository);
     }
 
+    /**
+     * Transparent box, condition coverage of the photo/URI rule in {@code update}:
+     * the book's photo only changes when the new file and its URI are both present.
+     */
+    static Stream<Arguments> photoAndUriCombinations() {
+        final MultipartFile file = mock(MultipartFile.class);
+        return Stream.of(
+                arguments(null, null, "capa.jpg"),
+                arguments(null, "nova.jpg", "capa.jpg"),
+                arguments(file, null, "capa.jpg"),
+                arguments(file, "nova.jpg", "nova.jpg"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("photoAndUriCombinations")
+    void updateChangesPhotoOnlyWhenFileAndUriAgree(MultipartFile photo, String photoURI, String expectedPhoto) {
+        final Book existing = book(ISBN, "capa.jpg");
+        ReflectionTestUtils.setField(existing, "version", 0L);
+        when(bookRepository.findByIsbn(ISBN)).thenReturn(Optional.of(existing));
+        final var request = new UpdateBookRequest();
+        request.setIsbn(ISBN);
+        request.setPhoto(photo);
+        request.setPhotoURI(photoURI);
+
+        assertEquals(expectedPhoto, service.update(request, "0").getPhoto().getPhotoFile());
+    }
+
     @Test
     void removeBookPhotoDeletesTheStoredPhoto() {
         final Book withPhoto = book(ISBN, "capa.jpg");
@@ -203,7 +236,7 @@ class BookServiceImplTest {
         when(bookRepository.findByIsbn(ISBN)).thenReturn(Optional.of(withPhoto));
         when(bookRepository.save(withPhoto)).thenReturn(withPhoto);
 
-        service.removeBookPhoto(ISBN, 0);
+        assertSame(withPhoto, service.removeBookPhoto(ISBN, 0));
 
         assertNull(withPhoto.getPhoto());
         verify(photoRepository).deleteByPhotoFile("capa.jpg");
@@ -244,17 +277,20 @@ class BookServiceImplTest {
 
     @Test
     void findByAuthorNameSearchesByPrefix() {
-        service.findByAuthorName("Manuel");
+        final List<Book> found = List.of(book(ISBN, null));
+        when(bookRepository.findByAuthorName("Manuel%")).thenReturn(found);
 
-        verify(bookRepository).findByAuthorName("Manuel%");
+        assertEquals(found, service.findByAuthorName("Manuel"));
     }
 
     @Test
     void searchBooksUsesDefaultPageAndEmptyQuery() {
         final ArgumentCaptor<Page> page = ArgumentCaptor.forClass(Page.class);
         final ArgumentCaptor<SearchBooksQuery> query = ArgumentCaptor.forClass(SearchBooksQuery.class);
+        final List<Book> found = List.of(book(ISBN, null));
+        when(bookRepository.searchBooks(any(), any())).thenReturn(found);
 
-        service.searchBooks(null, null);
+        assertEquals(found, service.searchBooks(null, null));
 
         verify(bookRepository).searchBooks(page.capture(), query.capture());
         assertEquals(new Page(1, 10), page.getValue());

@@ -144,8 +144,10 @@ class UserServiceTest {
     void searchUsersUsesDefaultPageAndEmptyQuery() {
         final ArgumentCaptor<Page> page = ArgumentCaptor.forClass(Page.class);
         final ArgumentCaptor<SearchUsersQuery> query = ArgumentCaptor.forClass(SearchUsersQuery.class);
+        final List<User> found = List.of(Reader.newReader("ana@gmail.com", "Anaanaana!1", "Ana Silva"));
+        when(userRepo.searchUsers(any(), any())).thenReturn(found);
 
-        service.searchUsers(null, null);
+        assertEquals(found, service.searchUsers(null, null));
 
         verify(userRepo).searchUsers(page.capture(), query.capture());
         assertEquals(new Page(1, 10), page.getValue());

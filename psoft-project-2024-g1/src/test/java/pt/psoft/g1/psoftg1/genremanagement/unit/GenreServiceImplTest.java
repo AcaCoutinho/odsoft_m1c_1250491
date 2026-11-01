@@ -10,8 +10,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import pt.psoft.g1.psoftg1.bookmanagement.services.GenreBookCountDTO;
 import pt.psoft.g1.psoftg1.exceptions.NotFoundException;
 import pt.psoft.g1.psoftg1.genremanagement.repositories.GenreRepository;
+import pt.psoft.g1.psoftg1.genremanagement.services.GenreLendingsDTO;
 import pt.psoft.g1.psoftg1.genremanagement.services.GenreLendingsPerMonthDTO;
 import pt.psoft.g1.psoftg1.genremanagement.services.GenreServiceImpl;
 import pt.psoft.g1.psoftg1.genremanagement.services.GetAverageLendingsQuery;
@@ -71,8 +73,10 @@ class GenreServiceImplTest {
     @Test
     void averageLendingsUsesFirstDayOfMonthAndDefaultPage() {
         final ArgumentCaptor<Page> page = ArgumentCaptor.forClass(Page.class);
+        final var result = List.of(mock(GenreLendingsDTO.class));
+        when(genreRepository.getAverageLendingsInMonth(any(), any())).thenReturn(result);
 
-        service.getAverageLendings(new GetAverageLendingsQuery(2024, 2), null);
+        assertEquals(result, service.getAverageLendings(new GetAverageLendingsQuery(2024, 2), null));
 
         verify(genreRepository).getAverageLendingsInMonth(eq(LocalDate.of(2024, 2, 1)), page.capture());
         assertEquals(new Page(1, 10), page.getValue());
@@ -80,10 +84,11 @@ class GenreServiceImplTest {
 
     @Test
     void topGenresAsksForTheFirstPageOfFive() {
-        when(genreRepository.findTop5GenreByBookCount(any())).thenReturn(new PageImpl<>(List.of()));
+        final var top = List.of(mock(GenreBookCountDTO.class));
+        when(genreRepository.findTop5GenreByBookCount(any())).thenReturn(new PageImpl<>(top));
         final ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
 
-        assertTrue(service.findTopGenreByBooks().isEmpty());
+        assertEquals(top, service.findTopGenreByBooks());
 
         verify(genreRepository).findTop5GenreByBookCount(pageable.capture());
         assertEquals(0, pageable.getValue().getPageNumber());

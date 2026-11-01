@@ -67,4 +67,13 @@ class AuthorTest {
         assertEquals("Outro Nome", subject.getName());
         assertEquals("Outra bio", subject.getBio());
     }
+
+    @Test
+    void ensurePatchWithPhotoUriSetsThePhoto() {
+        final var subject = new Author(validName, validBio, null);
+
+        subject.applyPatch(0, new UpdateAuthorRequest(null, null, null, "nova.jpg"));
+
+        assertEquals("nova.jpg", subject.getPhoto().getPhotoFile());
+    }
 }

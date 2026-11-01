@@ -72,6 +72,16 @@ class LendingNumberTest {
     }
 
     @Test
+    void ensureSequentialOnlyConstructorAcceptsZero() {
+        assertEquals(LocalDate.now().getYear() + "/0", new LendingNumber(0).toString());
+    }
+
+    @Test
+    void ensureSequentialOnlyConstructorRejectsNegative() {
+        assertThrows(IllegalArgumentException.class, () -> new LendingNumber(-1));
+    }
+
+    @Test
     void ensureSequentialZeroIsAccepted() {
         assertEquals("2024/0", new LendingNumber(2024, 0).toString());
     }
