@@ -247,6 +247,8 @@
 					</dependency>
 				</dependencies>
 				<configuration>
+					<threads>4</threads>
+					<withHistory>true</withHistory>
 					<excludedTestClasses>
 						<param>pt.psoft.g1.psoftg1*.integration.*</param>
 						<param>pt.psoft.g1.psoftg1*.system.*</param>

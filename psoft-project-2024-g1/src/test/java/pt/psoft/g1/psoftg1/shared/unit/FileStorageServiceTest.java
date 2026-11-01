@@ -89,6 +89,12 @@ class FileStorageServiceTest {
     }
 
     @Test
+    void storedFileIsNamedByThePrefixAndTheOriginalExtension() {
+        assertEquals("abc.png", service.storeFile("abc", photo("image/png", 10)));
+        assertTrue(Files.exists(uploads.resolve("abc.png")));
+    }
+
+    @Test
     void storedFileCanBeReadAndDeleted() throws IOException {
         Files.write(uploads.resolve("capa.jpg"), new byte[]{1, 2, 3});
 

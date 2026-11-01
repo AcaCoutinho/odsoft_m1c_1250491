@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
+import pt.psoft.g1.psoftg1.authormanagement.api.AuthorLendingView;
 import pt.psoft.g1.psoftg1.authormanagement.model.Author;
 import pt.psoft.g1.psoftg1.authormanagement.repositories.AuthorRepository;
 import pt.psoft.g1.psoftg1.authormanagement.services.AuthorMapper;
@@ -120,13 +121,37 @@ class AuthorServiceImplTest {
         assertEquals("Manuel Antonio Pina", author.getName());
     }
 
+    /**
+     * Transparent box, condition coverage of the same photo/URI rule in {@code partialUpdate}:
+     * the author's photo only changes when the new file and its URI are both present.
+     */
+    static Stream<Arguments> patchPhotoAndUriCombinations() {
+        final MultipartFile file = mock(MultipartFile.class);
+        return Stream.of(
+                arguments(null, null, "foto.jpg"),
+                arguments(null, "nova.jpg", "foto.jpg"),
+                arguments(file, null, "foto.jpg"),
+                arguments(file, "nova.jpg", "nova.jpg"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("patchPhotoAndUriCombinations")
+    void partialUpdateChangesPhotoOnlyWhenFileAndUriAgree(MultipartFile photo, String photoURI, String expectedPhoto) {
+        final Author withPhoto = new Author("Manuel Antonio Pina", "Jornalista e escritor", "foto.jpg");
+        when(authorRepository.findByAuthorNumber(1L)).thenReturn(Optional.of(withPhoto));
+        when(authorRepository.save(withPhoto)).thenReturn(withPhoto);
+
+        assertSame(withPhoto, service.partialUpdate(1L, new UpdateAuthorRequest(null, null, photo, photoURI), 0));
+        assertEquals(expectedPhoto, withPhoto.getPhoto().getPhotoFile());
+    }
+
     @Test
     void removeAuthorPhotoRemovesItFromTheAuthorAndDeletesTheStoredPhoto() {
         final Author withPhoto = spy(new Author("Manuel Antonio Pina", "Jornalista e escritor", "foto.jpg"));
         when(authorRepository.findByAuthorNumber(1L)).thenReturn(Optional.of(withPhoto));
         when(authorRepository.save(withPhoto)).thenReturn(withPhoto);
 
-        service.removeAuthorPhoto(1L, 0);
+        assertEquals(Optional.of(withPhoto), service.removeAuthorPhoto(1L, 0));
 
         verify(withPhoto).removePhoto(0);
         verify(photoRepository).deleteByPhotoFile("foto.jpg");
@@ -135,10 +160,11 @@ class AuthorServiceImplTest {
 
     @Test
     void findTopAuthorByLendingsAsksForTheFirstPageOfFive() {
-        when(authorRepository.findTopAuthorByLendings(any())).thenReturn(new PageImpl<>(List.of()));
+        final AuthorLendingView top = new AuthorLendingView();
+        when(authorRepository.findTopAuthorByLendings(any())).thenReturn(new PageImpl<>(List.of(top)));
         final ArgumentCaptor<Pageable> page = ArgumentCaptor.forClass(Pageable.class);
 
-        assertTrue(service.findTopAuthorByLendings().isEmpty());
+        assertEquals(List.of(top), service.findTopAuthorByLendings());
 
         verify(authorRepository).findTopAuthorByLendings(page.capture());
         assertEquals(0, page.getValue().getPageNumber());

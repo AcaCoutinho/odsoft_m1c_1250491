@@ -67,6 +67,13 @@ class BookTest {
         assertDoesNotThrow(() -> new Book(validIsbn, validTitle, null, validGenre, authors, null));
     }
 
+    @Test
+    void ensureDescriptionIsStoredWhenGiven() {
+        authors.add(validAuthor1);
+        final Book book = new Book(validIsbn, validTitle, "Policial juvenil", validGenre, authors, null);
+        assertEquals("Policial juvenil", book.getDescription());
+    }
+
     // Optimistic concurrency: the patch and the photo removal must target the current version
     private Book bookWithVersion(long version) {
         authors.add(validAuthor1);
