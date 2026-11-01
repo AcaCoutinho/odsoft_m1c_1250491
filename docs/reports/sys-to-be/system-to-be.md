@@ -32,11 +32,11 @@ Um quality gate falhado deixa o build `UNSTABLE`, e o deploy não corre:
 
 Por problemas técnicos com as VMs, os ambientes correm numa só máquina:
 
-| Planeado | Implementado | Porta | Perfil | Dados |
+| Planeado | Implementado | Porta | Perfil |
 |---|---|---:|---|---|
-| `VM_JENKINS` | Jenkins | 8080 | | |
-| `VM_DEV` | Docker Compose `app-dev` | 8081 | `dev` + `bootstrap` | Dados de exemplo |
-| `VM_PROD` | Docker Compose `app-prod` | 8082 | `prod` | Vazio |
+| `VM_JENKINS` | Jenkins | 8080 | |
+| `VM_DEV` | Docker Compose `app-dev` | 8081 | `dev` + `bootstrap` |
+| `VM_PROD` | Docker Compose `app-prod` | 8082 | `prod` |
 
 - A mesma imagem é promovida de DEV para PROD; só mudam as variáveis `SPRING_PROFILES_ACTIVE`, `APP_PORT` e `IMAGE_TAG`.
 - Depois de cada deploy, o pipeline confirma `/actuator/health` e o commit em `/api/public/environment`; se falhar, volta à imagem anterior.
@@ -79,17 +79,17 @@ Jenkins 2.580.1, de 28-10-2026 a 01-11-2026: branch `dev` (builds #1 a #16) e br
 
 Duração média por stage na branch `dev` até 31-10-2026, antes das melhorias da secção 6:
 
-| Stage | Duração média | Peso |
+| Stage | Duração média |
 |---|---:|---:|
-| Checkout e Build | 8 s | 3% |
-| Static Analysis, em paralelo com os testes | 33 s | |
-| Unit Tests | 27 s | 9% |
-| Integration & System Tests | 57 s | 18% |
-| Mutation Tests | 2 min 52 s | 54% |
-| Image | 4 s | 1% |
-| Smoke Tests | 27 s | 9% |
-| DEV | 13 s | 4% |
-| **Total** | **cerca de 5 min 17 s** | |
+| Checkout e Build | 8 s |
+| Static Analysis, em paralelo com os testes | 33 s |
+| Unit Tests | 27 s |
+| Integration & System Tests | 57 s |
+| Mutation Tests | 2 min 52 s |
+| Image | 4 s |
+| Smoke Tests | 27 s |
+| DEV | 13 s |
+| **Total** | **cerca de 5 min 17 s** |
 
 - **Resultado dos builds:** em `dev`, 12 `SUCCESS`, 1 `UNSTABLE` e 3 falhados. Em `main`, 9 `SUCCESS`, 3 falhados e 1 abortado.
 - **Deploys em PROD:** os builds #7 a #13 de `main` foram implantados em PROD, cada um com a aprovação registada ("PROD approved by illu"). Os stages comuns têm as mesmas durações em `main`; o total médio sobe para cerca de 6 min 9 s com o email de aprovação (3 s), o deploy em PROD (11 s) e a espera pela aprovação (59 s no build #10 e 21 s no #11).
@@ -123,10 +123,3 @@ Duração do stage Mutation Tests no Jenkins:
 - **Mais mutantes mortos:** os testes novos cobrem a regra foto/URI com as 4 combinações, verificam os valores devolvidos pelos serviços (antes só eram chamados) e usam stubs com listas não vazias, valores-limite e consentimentos a `true` e a `false`.
 - **Sobreviventes que ficam:** 7 dependem de defeitos conhecidos (só morrem quando forem corrigidos), cerca de 9 são equivalentes (não mudam o comportamento observável) e os restantes são getters gerados pelo Lombok nos DTOs.
 - **Mutation coverage sobe pouco (13% para 15%):** 58% dos mutantes estão no `equals` e no `hashCode` gerados pelo Lombok, que nenhum teste corre. A test strength é a medida relevante aqui.
-
-## 7. Limitações
-
-- Não há ambiente de staging.
-- PROD usa H2 em memória: serve para demonstrar o processo, não para guardar dados.
-- Margens pequenas nos gates de branches e de mutation.
-- O histórico do PIT fica num ficheiro da pasta temporária, partilhado pelos jobs `dev` e `main`. É isso que torna o `main` #13 tão rápido, mas dois builds em simultâneo podem usar o mesmo ficheiro.
