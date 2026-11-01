@@ -1,6 +1,6 @@
 # Meta 1: estado inicial vs. estado atual
 
-Estado inicial: commit `ddddc2a` (26-09-2026), detalhado em [system-as-is.md](sys-as-is/system-as-is.md). Estado atual: branch `dev` (31-10-2026), detalhado em [system-to-be.md](sys-to-be/system-to-be.md).
+Estado inicial: commit `ddddc2a` (26-09-2026), detalhado em [system-as-is.md](sys-as-is/system-as-is.md). Estado atual: branch `dev` (01-11-2026), detalhado em [system-to-be.md](sys-to-be/system-to-be.md).
 
 ## 1. Testes e cobertura
 
@@ -8,12 +8,12 @@ No início corriam 102 testes em 21 classes: 89 unitários do modelo de domínio
 
 | Indicador | Inicial | Atual |
 |---|---:|---:|
-| Testes executados | 102 | 419 (301 unitários, 104 de integração, 14 de sistema) |
+| Testes executados | 102 | 438 (320 unitários, 104 de integração, 14 de sistema) |
 | Classes de teste | 21 | 47 |
-| Linhas cobertas (JaCoCo) | 19% | 72,6% |
-| Branches cobertas (JaCoCo) | 4% | 21,3% |
-| Mutation coverage (PIT) | 5% | 13% |
-| Test strength (PIT) | 63% | 83% |
+| Linhas cobertas (JaCoCo) | 19% | 73,2% |
+| Branches cobertas (JaCoCo) | 4% | 21,9% |
+| Mutation coverage (PIT) | 5% | 15% |
+| Test strength (PIT) | 63% | 90% |
 
 ## 2. Deploy
 
